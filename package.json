@@ -1,0 +1,34 @@
+{
+  "name": "run-for-life",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npm run prepare:ocr && vite --host 0.0.0.0",
+    "build": "npm run prepare:ocr && tsc --noEmit && vite build && node scripts/finalize-pwa.mjs",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "prepare:ocr": "node scripts/prepare-ocr.mjs",
+    "test:pwa": "npm run build && playwright test --config playwright.pwa.config.ts"
+  },
+  "dependencies": {
+    "@tesseract.js-data/chi_sim": "^1.0.0",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tesseract.js": "^6.0.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "@vitest/coverage-v8": "^4.1.12",
+    "typescript": "^5.9.0",
+    "vite": "^7.2.0",
+    "vitest": "^4.1.12"
+  }
+}
