@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+const appVersion = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 import { expect, test } from '@playwright/test';
 
 test('production app installs under a subpath and opens offline', async ({ page, context }) => {
@@ -30,5 +32,5 @@ test('activates a waiting version after confirmation and retains saved runs', as
   await update.click();
   await reloaded;
   await expect(page.getByTestId('completed-count')).toHaveText('1');
-  await expect(page.getByTestId('app-version')).toHaveText('v0.1.1');
+  await expect(page.getByTestId('app-version')).toHaveText(`v${appVersion}`);
 });

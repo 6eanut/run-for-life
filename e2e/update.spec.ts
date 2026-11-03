@@ -1,8 +1,10 @@
+import { readFileSync } from 'node:fs';
+const appVersion = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 import { expect, test } from '@playwright/test';
 
 test('shows the application version and only applies an update after editing ends', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByTestId('app-version')).toHaveText('v0.1.1');
+  await expect(page.getByTestId('app-version')).toHaveText(`v${appVersion}`);
   await page.evaluate(() => window.dispatchEvent(new Event('app-update-ready')));
   const update = page.getByRole('button', { name: '更新并刷新', exact: true });
   await expect(update).toBeEnabled();

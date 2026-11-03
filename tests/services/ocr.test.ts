@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ createWorker: vi.fn(), recognize: vi.fn(), terminate: vi.fn() }));
-vi.mock('tesseract.js', () => ({ createWorker: mocks.createWorker }));
+vi.mock('tesseract.js', () => ({ createWorker: mocks.createWorker, PSM: { SINGLE_BLOCK: '6', SINGLE_LINE: '7', RAW_LINE: '13' } }));
 vi.mock('../../src/services/image', () => ({ prepareImage: vi.fn(async (file: File) => file) }));
 import { recognizeScreenshots, validateScreenshots } from '../../src/services/ocr';
 const png = () => new File(['png'], 'run.png', { type: 'image/png' });
@@ -31,6 +31,8 @@ describe('local two-screenshot OCR', () => {
     expect(mocks.recognize).toHaveBeenCalledTimes(2);
     expect(mocks.terminate).toHaveBeenCalledOnce();
     expect(progress).toHaveBeenLastCalledWith(1);
+    const values = progress.mock.calls.map(call => call[0]);
+    expect(values).toEqual([...values].sort((a, b) => a - b));
   });
   it('releases the worker on OCR error', async () => {
     mocks.recognize.mockRejectedValueOnce(new Error('recognition failed'));

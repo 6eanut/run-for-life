@@ -12,6 +12,7 @@ type Props = {
   onSave: (record: RunRecord, allowPossibleDuplicate: boolean) => void;
   error: string;
   recognizedTexts?: string[];
+  timezoneSuggested?: boolean;
 };
 
 const extraFields = [
@@ -26,7 +27,7 @@ const labels: Record<string, string> = {
   averageCadenceSpm: '平均步频', averagePaceSecondsPerKm: '平均配速', timezone: '时区',
 };
 
-export function RecordEditor({ record, conflicts, sample, onSave, error, recognizedTexts }: Props) {
+export function RecordEditor({ record, conflicts, sample, onSave, error, recognizedTexts, timezoneSuggested }: Props) {
   const [draft, setDraft] = useState(record);
   const [duration, setDuration] = useState(record.durationSeconds == null ? '' : formatDuration(record.durationSeconds));
   const [pace, setPace] = useState(record.averagePaceSecondsPerKm == null ? '' : formatPace(record.averagePaceSecondsPerKm));
@@ -60,6 +61,7 @@ export function RecordEditor({ record, conflicts, sample, onSave, error, recogni
   return <form className="record-editor" onSubmit={submit}>
     {sample && <p className="notice">演示数据 · 保存后才会加入你的记录，请先核对它是否是你的真实训练。示例时区 Asia/Shanghai 根据北京地点推定，请核对并修改。</p>}
     <p className="editor-hint">空白字段表示未识别。请核对日期和运动时长，其余数据可以稍后补充。</p>
+    {timezoneSuggested && <p className="notice">截图未注明时区，已按你的设置填入 {record.timezone}，请核对；可以在下方修改。</p>}
     {recognizedTexts && <details className="ocr-source"><summary>查看识别文字</summary><p className="editor-hint">包含 OCR 原文与按版面整理的指标，核对后再保存。</p>{recognizedTexts.map((text, index) => <section key={index}><strong>截图 {index + 1}</strong><pre>{text.trim() || '未识别到文字'}</pre></section>)}</details>}
     {!!conflicts.length && <section className="conflicts" aria-label="识别冲突">
       <strong>两张截图存在不同数值，请确认属于同一次训练</strong>
