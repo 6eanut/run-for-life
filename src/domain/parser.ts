@@ -4,7 +4,7 @@ import { withChallenge } from './records';
 const DIGITS='[0-9OoIl|]';
 const NUMBER=`${DIGITS}+(?:[.．]${DIGITS}+)?`;
 const TIME=`${DIGITS}{1,3}\\s*[:：]\\s*${DIGITS}{2}(?:\\s*[:：]\\s*${DIGITS}{2})?`;
-const PACE=`${DIGITS}{1,3}\\s*['′’:]\\s*${DIGITS}{2}\\s*["″”]?`;
+const PACE=`${DIGITS}{1,3}\\s*['′’:]\\s*${DIGITS}{2}\\s*['′’"″”]*`;
 const numericText=(text:string)=>text.replace(/[Oo]/g,'0').replace(/[Il|]/g,'1').replace(/．/g,'.');
 
 export function parseDuration(text: string): number|null {
@@ -20,7 +20,8 @@ export function parseDuration(text: string): number|null {
 }
 
 export function parsePace(text: string): number|null {
-  return parseDuration(text.replace(/\s*(?:min(?:utes?)?\s*)?\/\s*(?:公里|km)\s*$/i,'').replace(/[′’']/g,':').replace(/[″”"]/g,'').trim());
+  const value=text.replace(/\s*(?:min(?:utes?)?\s*)?\/\s*(?:公里|km)\s*$/i,'').replace(/[′’]/g,"'").replace(/[″”]/g,'"').trim().replace(/['"]+\s*$/,'');
+  return parseDuration(value.replace(/'/g,':'));
 }
 
 function captured(text:string,labels:string,value:string):string|null {
@@ -28,10 +29,10 @@ function captured(text:string,labels:string,value:string):string|null {
 }
 
 const COLUMN_LABELS=[
-  '实际运动时长','运动时间','训练时间','训练时长','运动时长','总时间',
-  '运动距离','总距离','距离','平均配速','平均心率','平均步频','平均功率',
-  '动态千卡','动态消耗','活动千卡','总千卡数','总千卡','总消耗',
-  '累计爬升','爬升高度','运动强度','耗能','气温','温度','湿度','空气质量指数',
+  '实际运动时长','体能训练时间','体能训练时长','运动时间','训练时间','训练时长','运动时长','总时间',
+  '跑步距离','运动距离','总距离','距离','平均配速','平均心率','平均步频','平均功率',
+  '动态千卡','动态消耗','活动千卡','动态卡路里','总千卡数','总千卡','总消耗','总卡路里',
+  '累计爬升','总爬升高度','爬升高度','运动强度','努力程度','耗能','气温','温度','湿度','空气质量指数','空气质量',
   'Workout Time','Duration','Distance','Average Pace','Average Heart Rate','Average Cadence',
   'Average Power','Active Calories','Total Calories','Elevation Gain','Effort','Temperature','Humidity','AQI',
 ].sort((a,b)=>b.length-a.length);
@@ -53,6 +54,8 @@ const METRIC_UNITS:Partial<Record<keyof RunRecord,RegExp>>={
 function unitAllowed(field:keyof RunRecord,suffix:string):boolean {
   const unit=suffix.trim().replace(/^[,，;；]+\s*/,'');
   if(!unit||COLUMN_LABELS.some(label=>unit.toLowerCase().startsWith(label.toLowerCase()))) return true;
+  if((field==='activeCaloriesKcal'||field==='totalCaloriesKcal')&&/^(?:干卡|于卡|于下)[,.，。]?$/.test(unit)) return true;
+  if(field==='averagePowerWatts'&&/^[凡凤到邑][,.，。]?$/.test(unit)) return true;
   return METRIC_UNITS[field]?.test(unit)??false;
 }
 
@@ -61,46 +64,131 @@ function labeledValue(text:string,labels:string,value:string):{raw:string;suffix
   return match?{raw:match[1],suffix:match[2]}:null;
 }
 
+function columnValues(line:string):string[] {
+  const valuePattern=new RegExp(`(?:^|\\s)(-?(?:${TIME}|${PACE}|${NUMBER}))`,'g');
+  const matches=[...line.matchAll(valuePattern)].filter(match=>/\d/.test(match[1])&&!/\/\s*$/.test(line.slice(0,match.index!)));
+  return matches.map((match,column)=>line.slice(match.index!+match[0].length-match[1].length,matches[column+1]?.index??line.length).trim());
+}
+
+function headerLabels(line:string):string[] {
+  const pattern=new RegExp(COLUMN_LABELS.join('|'),'gi');
+  const labels=[...line.matchAll(pattern)].map(match=>match[0]);
+  return labels.length&&!line.replace(pattern,'').replace(/[\s:：|,，]/g,'')?labels:[];
+}
+
+function hasExplicitUnit(value:string):boolean {
+  return /(?:公里|\bkm\b|\/\s*km|[°℃℉]|摄氏|千卡|大卡|kcal|bpm|spm|次\s*\/|步\s*\/|瓦|watts?|%|米|meters?|\bft\b|\bmi\b)/i.test(value);
+}
+
 function expandColumns(text:string):string {
-  const lines=text.split('\n');
-  return lines.map((line,index)=>{
-    const labels=[...line.matchAll(new RegExp(COLUMN_LABELS.join('|'),'gi'))].map(match=>match[0]);
-    if(labels.length<2||/[0-9]/.test(line)) return line;
-    const valuePattern=new RegExp(`(?:^|\\s)(-?(?:${TIME}|${PACE}|${NUMBER}))`,'g');
-    const valueLine=lines[index+1]??'';
-    const matches=[...valueLine.matchAll(valuePattern)].filter(match=>/\d/.test(match[1]));
-    // Keep each value's unit, including unsupported units that must remain unparsed.
-    const values=matches.map((match,column)=>valueLine.slice(match.index!+match[0].length-match[1].length,matches[column+1]?.index??valueLine.length).trim());
-    // Never associate the last header with the first value from an incomplete column row.
-    if(values.length!==labels.length) return '';
-    return labels.map((label,column)=>`${label} ${values[column]}`).join('\n');
-  }).join('\n');
+  const lines=text.split('\n').filter(line=>line.trim()).map(line=>{
+    const reverse=line.match(new RegExp(`^\\s*(-?${DIGITS}.*?)\\s*(${COLUMN_LABELS.join('|')})\\s*$`,'i'));
+    return reverse&&columnValues(reverse[1]).length===1&&hasExplicitUnit(reverse[1])?`${reverse[2]} ${reverse[1]}`:line;
+  });
+  const output=[...lines];
+  const consumed=new Set<number>();
+  for(let index=0;index<lines.length;index+=1) {
+    if(consumed.has(index)) continue;
+    const labels=headerLabels(lines[index]);
+    if(!labels.length) continue;
+    const previous=index>0&&!consumed.has(index-1)?columnValues(lines[index-1]):[];
+    if(previous.length===labels.length&&previous.every(hasExplicitUnit)) {
+      output[index-1]='';
+      output[index]=labels.map((label,column)=>`${label} ${previous[column]}`).join('\n');
+      continue;
+    }
+    let next=index+1;
+    while(next<lines.length&&headerLabels(lines[next]).length) {
+      labels.push(...headerLabels(lines[next]));
+      output[next]='';consumed.add(next);next+=1;
+    }
+    const values:string[]=[];
+    const valueLines:number[]=[];
+    while(next<lines.length&&!headerLabels(lines[next]).length&&values.length<labels.length) {
+      const row=columnValues(lines[next]);
+      if(!row.length||!new RegExp(`^\\s*-?${DIGITS}`).test(lines[next])) break;
+      values.push(...row);valueLines.push(next);consumed.add(next);next+=1;
+    }
+    // Require a complete block; never assign the first surviving value to its last header.
+    output[index]=values.length===labels.length?labels.map((label,column)=>`${label} ${values[column]}`).join('\n'):'';
+    if(values.length===labels.length) valueLines.forEach(line=>{output[line]='';});
+  }
+  return output.join('\n');
 }
 
 function parseSplits(text:string):Split[] {
-  const section=text.split(/分段|splits/i)[1];
+  const section=text.split(/分段|单段|splits/i)[1];
   if(!section) return [];
-  const row=new RegExp(`(?:^|\\n)\\s*(\\d{1,3})[.、]?\\s+(${TIME})\\s+(${PACE})(?:\\s*\\/(?:km|公里))?\\s+(${DIGITS}{2,3})(?:\\s*(?:次\\/分|bpm))?([^\\n]*)`,'gi');
+  const paceToken=`(?:${PACE}|${DIGITS}{3,4}\\s*['′’"″”]+)`;
+  const row=new RegExp(`(?:^|\\n)\\s*(\\d{1,3})[.、]?\\s+(${TIME})\\s+(${paceToken})(?:\\s*\\/\\s*(?:km|公里))?\\s*["”‘’]*\\s*(${DIGITS}{2,3})(?:\\s*(?:次\\s*\\/\\s*分|bpm))?([^\\n]*)`,'gi');
   const matches=[...section.matchAll(row)];
   return matches.map((match,rowIndex)=>{
     const durationSeconds=parseDuration(match[2]);
-    const paceSecondsPerKm=parsePace(match[3]);
+    const parsedPace=parsePace(match[3]);
+    const paceEnd=match[0].indexOf(match[3],match[0].indexOf(match[2])+match[2].length)+match[3].length;
+    const explicitUnit=/^\s*\/\s*(?:km|公里)/i.test(match[0].slice(paceEnd));
+    const joinedDuration=durationSeconds===null?'':`${Math.floor(durationSeconds/60)}${String(durationSeconds%60).padStart(2,'0')}`;
+    const joinedPace=numericText(match[3]).replace(/['"\s]/g,'');
+    // Restore an omitted minute separator only with an explicit /km unit and
+    // an exact full-kilometer duration match. Other unreadable paces stay null.
+    const paceSecondsPerKm=parsedPace??(explicitUnit&&joinedPace===joinedDuration?durationSeconds:null);
     const partial=/不足|剩余|partial/i.test(match[5])||(rowIndex===matches.length-1&&durationSeconds!==null&&paceSecondsPerKm!==null&&durationSeconds<paceSecondsPerKm-2);
     return {index:Number(match[1]),durationSeconds,paceSecondsPerKm,heartRateBpm:Number(numericText(match[4])),...(partial?{isPartialSplit:true}:{})};
   });
 }
 
-export function parseWorkoutText(input:string):Partial<RunRecord> {
-  const normalized=input.replace(/[″”]/g,'"').replace(/[′’]/g,"'").normalize('NFKC').replace(/\r/g,'').replace(/[\u200B-\u200D]/g,'').replace(/(?<=[\u4e00-\u9fff])[ \t]+(?=[\u4e00-\u9fff])/g,'');
+export interface WorkoutParseOptions {temperatureUnit?:'celsius'|'fahrenheit'}
+
+function temperatureValue(raw:string,suffix:string,options:WorkoutParseOptions):number|null {
+  const value=Number(numericText(raw));
+  const unit=suffix.trim();
+  if(/^(?:°?\s*C\b|摄氏度)/i.test(unit)) return value;
+  if(/^°?\s*F\b/i.test(unit)) return Math.round((value-32)*5/9*100)/100;
+  if(/^°(?:\s|$)/.test(unit)||!unit) {
+    if(options.temperatureUnit==='celsius') return value;
+    if(options.temperatureUnit==='fahrenheit') return Math.round((value-32)*5/9*100)/100;
+  }
+  return null;
+}
+
+function appleWeather(text:string,options:WorkoutParseOptions):Partial<RunRecord> {
+  const lines=text.split('\n');
+  const header=lines.findIndex(line=>/^(?:天气|气温|温度)\s*湿度\s*空气质量(?:指数)?\s*$/.test(line.trim()));
+  if(header<1) return {};
+  const row=lines[header-1];
+  const temperature=row.match(/(?:^|[^\d])(-?\d+(?:\.\d+)?)\s*°\s*([CF])?/i);
+  if(!temperature) return {};
+  const humidity=row.match(/(\d+(?:\.\d+)?)\s*%/);
+  let fields:Partial<RunRecord>={};
+  if(temperature) {
+    const value=Number(temperature[1]);
+    const unit=temperature[2]?.toUpperCase()??(options.temperatureUnit==='celsius'?'C':options.temperatureUnit==='fahrenheit'?'F':null);
+    if(unit) fields={...fields,temperatureCelsius:unit==='F'?Math.round((value-32)*5/9*100)/100:value};
+  }
+  if(humidity) {
+    const value=Number(humidity[1]);
+    if(value>=0&&value<=100) fields={...fields,humidityPercent:value};
+    const tail=row.slice(humidity.index!+humidity[0].length).trim();
+    const aqi=tail.match(/^[|:;,·.\s]*(\d{1,3})[|:;,·.\s]*$/);
+    if(aqi) fields={...fields,airQualityIndex:Number(aqi[1])};
+  }
+  return fields;
+}
+
+export function parseWorkoutText(input:string,options:WorkoutParseOptions={}):Partial<RunRecord> {
+  const base=input.replace(/[″”]/g,'"').replace(/[′’]/g,"'").normalize('NFKC').replace(/\r/g,'').replace(/[\u200B-\u200D]/g,'').replace(/(?<=[\u4e00-\u9fff])[ \t]+(?=[\u4e00-\u9fff])/g,'');
+  const labels=COLUMN_LABELS.filter(label=>/^[\u4e00-\u9fff]+$/.test(label)).reduce((text,label)=>text.replace(new RegExp([...label].join('[ \\t\\n]*'),'g'),label),base);
+  // Correct a recurring OCR glyph only inside explicit calorie labels.
+  const normalized=labels.replace(/(动态|总)[干于]卡/g,'$1千卡').replace(/(耗能|运动强度|努力程度)\s*[+±]+\s*/g,'$1\n');
   const text=expandColumns(normalized);
-  let record:Partial<RunRecord>={};
+  let record:Partial<RunRecord>=appleWeather(normalized,options);
   if(/户外跑步|outdoor run(?:ning)?/i.test(text)) record={...record,activityType:'outdoor_running'};
   else if(/室内跑步|indoor run(?:ning)?/i.test(text)) record={...record,activityType:'indoor_running'};
   const date=text.match(/\b(20\d{2})\s*[-/.年]\s*(\d{1,2})\s*[-/.月]\s*(\d{1,2})\s*日?/);
   if(date) record={...record,date:`${date[1]}-${date[2].padStart(2,'0')}-${date[3].padStart(2,'0')}`};
   const times=text.match(/\b([012]?\d:[0-5]\d)\s*[–—~至-]\s*([012]?\d:[0-5]\d)\b/);
   if(times) record={...record,startTime:times[1].padStart(5,'0'),endTime:times[2].padStart(5,'0')};
-  const duration=captured(text,'实际运动时长|运动时间|训练时间|训练时长|运动时长|总时间|Workout Time|Duration',`${TIME}|${DIGITS}+\\s*分\\s*${DIGITS}{1,2}\\s*秒`);
+  const duration=captured(text,'实际运动时长|体能训练时间|体能训练时长|运动时间|训练时间|训练时长|运动时长|总时间|Workout Time|Duration',`${TIME}|${DIGITS}+\\s*分\\s*${DIGITS}{1,2}\\s*秒`);
   if(duration) record={...record,durationSeconds:parseDuration(duration)};
   const pace=labeledValue(text,'平均配速|Average Pace',PACE);
   if(pace) record={...record,averagePaceSecondsPerKm:unitAllowed('averagePaceSecondsPerKm',pace.suffix)?parsePace(pace.raw):null};
@@ -109,26 +197,43 @@ export function parseWorkoutText(input:string):Partial<RunRecord> {
     ['averageHeartRateBpm','平均心率|Average Heart Rate|Avg[.]? Heart Rate'],
     ['averageCadenceSpm','平均步频|Average Cadence|Avg[.]? Cadence'],
     ['averagePowerWatts','平均功率|Average Power|Avg[.]? Power'],
-    ['activeCaloriesKcal','动态千卡|动态消耗|活动千卡|Active Calories'],
-    ['totalCaloriesKcal','总千卡数|总千卡|总消耗|Total Calories'],
-    ['elevationGainMeters','累计爬升|爬升高度|Elevation Gain'],
-    ['effortLevel','运动强度|耗能|Effort'],
+    ['activeCaloriesKcal','动态千卡|动态消耗|活动千卡|动态卡路里|Active Calories'],
+    ['totalCaloriesKcal','总千卡数|总千卡|总消耗|总卡路里|Total Calories'],
+    ['elevationGainMeters','累计爬升|总爬升高度|爬升高度|Elevation Gain'],
+    ['effortLevel','运动强度|努力程度|耗能|Effort'],
     ['temperatureCelsius','气温|温度|Temperature'],
     ['humidityPercent','湿度|Humidity'],
-    ['airQualityIndex','空气质量指数|AQI'],
+    ['airQualityIndex','空气质量指数|空气质量|AQI'],
   ];
   for(const [field,label] of specs) {
     const value=labeledValue(text,label,`${field==='temperatureCelsius'?'-?':''}${NUMBER}`);
-    if(value!==null) record={...record,[field]:unitAllowed(field,value.suffix)?Number(numericText(value.raw)):null};
+    if(value!==null) record={...record,[field]:field==='temperatureCelsius'?temperatureValue(value.raw,value.suffix,options):unitAllowed(field,value.suffix)?Number(numericText(value.raw)):null};
   }
-  const effort=captured(text,'运动强度|耗能|Effort',`${NUMBER}\\s*(?:/\\s*10)?\\s*[（(]?\\s*(?:适中|轻松|吃力|困难|moderate|easy|hard)`);
+  const effort=captured(text,'运动强度|努力程度|耗能|Effort',`${NUMBER}\\s*(?:/\\s*10)?\\s*[（(]?\\s*(?:适中|轻松|吃力|困难|moderate|easy|hard)`);
   if(effort) record={...record,effortDescription:effort.match(/适中|轻松|吃力|困难|moderate|easy|hard/i)?.[0]??null};
   const location=captured(text,'地点|Location','[^\\n]{1,100}');
   if(location) record={...record,location:location.trim()};
+  else {
+    const cities=[...new Set(text.split('\n').map(line=>line.trim().replace(/^.{0,2}(?=中国)/,'')).filter(line=>/^(?:中国[,，\s]*)?[\u4e00-\u9fff]{2,15}(?:省[\u4e00-\u9fff]{2,10})?市$/.test(line)))];
+    if(cities.length===1) record={...record,location:cities[0]};
+  }
+  const weather=text.split(/天气|weather/i)[1];
+  if(weather) {
+    const weatherRows=weather.split('\n').filter(line=>new RegExp(`^\\s*(?:-?${NUMBER}\\s*°?C\\s*)?(?:${NUMBER}\\s*%)?\\s*$`,'i').test(line)).join('\n');
+    const temperature=weatherRows.match(new RegExp(`(-?${NUMBER})\\s*°?C\\b`,'i'));
+    const humidity=weatherRows.match(new RegExp(`(${NUMBER})\\s*%`));
+    if(record.temperatureCelsius===undefined&&temperature) record={...record,temperatureCelsius:Number(numericText(temperature[1]))};
+    if(record.humidityPercent===undefined&&humidity) record={...record,humidityPercent:Number(numericText(humidity[1]))};
+  }
   const timezone=captured(text,'时区|Timezone','[A-Za-z_]+/[A-Za-z_/]+');
   if(timezone) record={...record,timezone};
   if(/Apple\s*Watch/i.test(text)) record={...record,source:'Apple Watch'};
   if(/首次跑步训练/.test(text)) record={...record,awards:['首次跑步训练']};
+  const heartSection=text.split(/(?:^|\n)心率\s*[>》]?\s*\n/)[1];
+  if(record.averageHeartRateBpm===undefined&&heartSection) {
+    const heartAverage=captured(heartSection,'平均',`${DIGITS}{2,3}\\s*次\\s*\\/\\s*分`);
+    if(heartAverage) record={...record,averageHeartRateBpm:Number(numericText(heartAverage.match(new RegExp(DIGITS+'{2,3}'))![0]))};
+  }
   const splits=parseSplits(text);
   if(splits.length) record={...record,splits};
   return record;

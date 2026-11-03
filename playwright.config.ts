@@ -3,7 +3,8 @@ process.env.NO_PROXY = [process.env.NO_PROXY, '127.0.0.1', 'localhost'].filter(B
 process.env.no_proxy = process.env.NO_PROXY;
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: '**/pwa.spec.ts',
+  outputDir: 'test-results/e2e',
+  testIgnore: ['**/pwa.spec.ts', '**/local-images.spec.ts'],
   fullyParallel: false,
   use: { baseURL: 'http://127.0.0.1:4187', trace: 'retain-on-failure' },
   webServer: { command: 'npm run dev -- --port 4187', url: 'http://127.0.0.1:4187', reuseExistingServer: !process.env.CI },

@@ -1,5 +1,6 @@
 import { createWorker } from 'tesseract.js';
 import { prepareImage } from './image';
+import { supplementalWorkoutText } from './ocr-layout';
 
 let busy = false;
 
@@ -30,8 +31,9 @@ export async function recognizeScreenshots(files: File[], onProgress: (progress:
     const results: string[] = [];
     for (const file of files) {
       const image = await prepareImage(file);
-      const result = await worker.recognize(image);
-      results.push(result.data.text);
+      const result = await worker.recognize(image, {}, { text: true, blocks: true });
+      const supplement = supplementalWorkoutText(result.data);
+      results.push(supplement ? `${supplement}\n\n${result.data.text}` : result.data.text);
       currentImage += 1;
     }
     onProgress(1);

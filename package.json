@@ -11,7 +11,8 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "prepare:ocr": "node scripts/prepare-ocr.mjs",
-    "test:pwa": "npm run build && playwright test --config playwright.pwa.config.ts"
+    "test:pwa": "npm run build && playwright test --config playwright.pwa.config.ts",
+    "test:local-images": "playwright test --config playwright.local-images.config.ts"
   },
   "dependencies": {
     "@tesseract.js-data/chi_sim": "^1.0.0",
