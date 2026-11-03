@@ -52,3 +52,19 @@ describe('weather text from OCR geometry',()=>{
     expect(supplementalWorkoutText(weather())).not.toContain('°C');
   });
 });
+
+it('leaves equally plausible weather values empty instead of selecting the first', () => {
+  const page = weather();
+  const words = page.blocks![0].paragraphs![0].lines![0].words!;
+  words[2] = word('48',400,420);
+  words.push(word('99',450,470));
+  expect(supplementalWorkoutText(page)).not.toContain('空气质量指数');
+});
+
+it('never uses a nearby status bar when the actual weather values are missing', () => {
+  const page = weather();
+  const line = page.blocks![0].paragraphs![0].lines![0];
+  line.text = '21:36 4G 90%';
+  line.words = [word('21:36',100,155),word('90%',190,302),word('4G',400,445)];
+  expect(supplementalWorkoutText(page)).toBe('');
+});

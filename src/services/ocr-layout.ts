@@ -54,6 +54,8 @@ function valueFor(label:Label,words:Word[]):string|null {
   }).filter(group=>Math.abs(center(group.bbox)-center(label.bbox))<=Math.max(label.bbox.x1-label.bbox.x0,height(label.bbox)*3));
   options.sort((a,b)=>Math.abs(center(a.bbox)-center(label.bbox))-Math.abs(center(b.bbox)-center(label.bbox)));
   const candidate=options[0];if(!candidate)return null;
+  const runnerUp=options[1];
+  if(runnerUp&&Math.abs(Math.abs(center(candidate.bbox)-center(label.bbox))-Math.abs(center(runnerUp.bbox)-center(label.bbox)))<=height(label.bbox)*0.15)return null;
   const number=Number(candidate.text);
   if(label.kind==='humidity')return number>=0&&number<=100?`湿度 ${candidate.text}%`:null;
   if(label.kind==='aqi')return Number.isInteger(number)&&number>=0&&number<=1000?`空气质量指数 ${candidate.text}`:null;
@@ -74,7 +76,11 @@ export function supplementalWorkoutText(page:OcrPage):string {
   const rowHeight=height(humidity.line.bbox);
   const rowLabels=labeled.filter(item=>Math.abs(item.line.bbox.y0-humidity.line.bbox.y0)<=rowHeight*0.8);
   if(!rowLabels.some(item=>item.label.kind==='aqi'))return '';
-  const preceding=lines.filter(line=>line.bbox.y0<humidity.line.bbox.y0&&humidity.line.bbox.y0-line.bbox.y1<rowHeight*4&&line.bbox.y1<=humidity.line.bbox.y0+rowHeight*0.3);
+  const preceding=lines.filter(line=>{
+    const text=(line.words??[]).map(word=>word.text).join(' ');
+    if(/\b\d{1,2}\s*[:：]\s*\d{2}\b/.test(text)||!/[°℃℉%]/.test(text))return false;
+    return line.bbox.y0<humidity.line.bbox.y0&&humidity.line.bbox.y0-line.bbox.y1<rowHeight*4&&line.bbox.y1<=humidity.line.bbox.y0+rowHeight*0.3;
+  });
   if(!preceding.length)return '';
   const latest=Math.max(...preceding.map(line=>line.bbox.y1));
   const words=preceding.filter(line=>latest-line.bbox.y1<rowHeight).flatMap(line=>line.words??[]);
