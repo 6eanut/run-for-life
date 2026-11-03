@@ -55,6 +55,8 @@ function unitAllowed(field:keyof RunRecord,suffix:string):boolean {
   const unit=suffix.trim().replace(/^[,，;；]+\s*/,'');
   if(!unit||COLUMN_LABELS.some(label=>unit.toLowerCase().startsWith(label.toLowerCase()))) return true;
   if((field==='activeCaloriesKcal'||field==='totalCaloriesKcal')&&/^(?:干卡|于卡|于下)[,.，。]?$/.test(unit)) return true;
+  if(field==='totalCaloriesKcal'&&/^和干卡[,.，。]?$/.test(unit)) return true;
+  if(field==='averageHeartRateBpm'&&/^[闪从]\s*\/\s*(?:分钟|分)[,.，。]?$/.test(unit)) return true;
   if(field==='averagePowerWatts'&&/^[凡凤到邑][,.，。]?$/.test(unit)) return true;
   return METRIC_UNITS[field]?.test(unit)??false;
 }
@@ -62,6 +64,37 @@ function unitAllowed(field:keyof RunRecord,suffix:string):boolean {
 function labeledValue(text:string,labels:string,value:string):{raw:string;suffix:string}|null {
   const match=text.match(new RegExp(`(?:${labels})[\\s:：]*(${value})([^\\n]*)`,'i'));
   return match?{raw:match[1],suffix:match[2]}:null;
+}
+
+const DISTANCE_NUMBER=`-?${DIGITS}+(?:[ \\t]*[.,．][ \\t]*${DIGITS}+)?`;
+const distanceNumber=(raw:string)=>Number(numericText(raw).replace(/\s/g,'').replace(',','.'));
+const workoutBody=(text:string)=>text.split(/(?:^|\n)\s*(?:分段|单段|splits)[^\n]*/i)[0];
+
+function headingDistances(text:string):number[] {
+  const lines=workoutBody(text).split('\n').map(line=>line.trim()).filter(Boolean);
+  const heading=/^(?:户外跑步|室内跑步|Outdoor Run(?:ning)?|Indoor Run(?:ning)?)(.*)$/i;
+  const metric=new RegExp(`^(${DISTANCE_NUMBER})\\s*(?:公里|km)\\s*$`,'i');
+  return lines.flatMap((line,index)=>{
+    const title=line.match(heading);
+    if(!title)return [];
+    // A summary value must touch the activity heading, not cross a map/section label.
+    const candidate=title[1].trim()||lines[index+1]||'';
+    const distance=candidate.match(metric);
+    return distance?[distanceNumber(distance[1])]:[];
+  });
+}
+
+function workoutDistance(text:string,source:string):number|null|undefined {
+  const body=workoutBody(text);
+  const pattern=new RegExp(`(?=(?:跑步距离|运动距离|总距离|距离|Distance)[\\s:：]*(${DISTANCE_NUMBER})([^\\n]*))`,'gi');
+  const labeled=[...body.matchAll(pattern)];
+  const candidates=[
+    ...labeled.filter(match=>unitAllowed('distanceKm',match[2])).map(match=>distanceNumber(match[1])),
+    ...headingDistances(source),
+  ].filter(value=>Number.isFinite(value)&&value>=0&&value<=2000);
+  const unique=[...new Set(candidates)];
+  if(unique.length===1)return unique[0];
+  return labeled.length||candidates.length?null:undefined;
 }
 
 function columnValues(line:string):string[] {
@@ -190,10 +223,11 @@ export function parseWorkoutText(input:string,options:WorkoutParseOptions={}):Pa
   if(times) record={...record,startTime:times[1].padStart(5,'0'),endTime:times[2].padStart(5,'0')};
   const duration=captured(text,'实际运动时长|体能训练时间|体能训练时长|运动时间|训练时间|训练时长|运动时长|总时间|Workout Time|Duration',`${TIME}|${DIGITS}+\\s*分\\s*${DIGITS}{1,2}\\s*秒`);
   if(duration) record={...record,durationSeconds:parseDuration(duration)};
+  const distance=workoutDistance(text,normalized);
+  if(distance!==undefined) record={...record,distanceKm:distance};
   const pace=labeledValue(text,'平均配速|Average Pace',PACE);
   if(pace) record={...record,averagePaceSecondsPerKm:unitAllowed('averagePaceSecondsPerKm',pace.suffix)?parsePace(pace.raw):null};
   const specs:[keyof RunRecord,string][]=[
-    ['distanceKm','运动距离|总距离|距离|Distance'],
     ['averageHeartRateBpm','平均心率|Average Heart Rate|Avg[.]? Heart Rate'],
     ['averageCadenceSpm','平均步频|Average Cadence|Avg[.]? Cadence'],
     ['averagePowerWatts','平均功率|Average Power|Avg[.]? Power'],

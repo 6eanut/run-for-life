@@ -1,4 +1,5 @@
-import { useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { version as appVersion } from '../package.json';
 import { emptyRecord, type RunRecord } from './domain/model';
 import { mergeWorkoutResults, parseWorkoutText } from './domain/parser';
 import { getStats } from './domain/records';
@@ -29,12 +30,19 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [temperatureUnit, setTemperatureUnit] = useState<'celsius' | 'fahrenheit' | ''>('celsius');
+  const [updateReady, setUpdateReady] = useState(false);
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
   const [importAllowed, setImportAllowed] = useState(false);
   const [replaceDamaged, setReplaceDamaged] = useState(false);
   const [deleting, setDeleting] = useState<RunRecord | null>(null);
   const uploadInput = useRef<HTMLInputElement>(null);
   const importInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const ready = () => setUpdateReady(true);
+    window.addEventListener('app-update-ready', ready);
+    window.dispatchEvent(new Event('app-check-update'));
+    return () => window.removeEventListener('app-update-ready', ready);
+  }, []);
   const stats = getStats(records);
   const next = milestones.find(milestone => milestone.count > stats.completedCount) ?? { count: Math.ceil((stats.completedCount + 1) / 500) * 500, title: '继续奔跑', reward: '为下一程选择一份自己的奖励' };
   const previous = [...milestones].reverse().find(milestone => milestone.count <= stats.completedCount)?.count ?? 0;
@@ -114,6 +122,7 @@ export default function App() {
       <header className="topbar"><span>个人终身运动计划 <span className="topbar-dot">·</span> 始于每一次出发</span><span className="open-ended">∞ 长期开放</span></header>
       <div className="page-heading"><div><span className="eyebrow">{section === 'overview' ? 'A LITTLE RUN. A LONG JOURNEY.' : 'YOUR PERSONAL RUNNING JOURNAL'}</span><h1>{{ overview: '每一次出发，都算数。', history: '把走过的路，留在这里。', milestones: '给每一段旅程，一点奖励。', settings: '为长久的记录，留一份备份。' }[section]}</h1><p>30 分钟跑步挑战 · 没有截止日期，也没有必须连续的天数。</p></div><button className="button primary new-run" onClick={() => document.getElementById('upload-section')?.scrollIntoView({ behavior: 'smooth' })}>＋ 记录跑步</button></div>
       <div role="status" aria-live="polite" className={`status-message ${message ? 'visible' : ''}`}>{message}</div>
+      {updateReady && <div className="notice update-notice"><span>有新版本可用，更新会保留已保存的跑步记录。</span><button className="text-button" disabled={busy || !!editing || !!importPreview || !!deleting} onClick={() => window.dispatchEvent(new Event('app-apply-update'))}>更新并刷新</button></div>}
       {section === 'overview' && <>
         <section className="journey-hero" aria-label="终身累计进度">
           <div className="hero-main"><span className="hero-kicker"><span /> 一场没有终点的挑战</span><div className="hero-count"><strong data-testid="completed-count">{stats.completedCount}</strong><span>次完成<br /><small>30 分钟的自己</small></span></div><p>跑一次，算一次。跑一生，记一生。</p><div className="hero-bottom"><span>YOUR JOURNEY CONTINUES</span><span>∞</span></div></div>
@@ -127,7 +136,7 @@ export default function App() {
       <section className="upload-section" id="upload-section" aria-label="截图导入"><div className="upload-copy"><span className="eyebrow">LESS TYPING. MORE RUNNING.</span><h2>两张截图，记下一次奔跑。</h2><p>选择同一次 Apple 健身训练的概览与详情截图。<br />在本机提取数据，核对后才会保存。</p><div className="upload-steps"><span>01 选择截图</span><i>→</i><span>02 核对数据</span><i>→</i><span>03 留下脚印</span></div></div><div className="upload-controls"><button disabled={busy} className="upload-zone" onClick={() => uploadInput.current?.click()}><span className="upload-icon" aria-hidden="true">＋</span><strong>{images.length ? '已选择 2 张截图' : '选择两张跑步截图'}</strong><small>{images.length ? images.map(file => file.name).join(' · ') : 'PNG / JPEG / WebP · 每张不超过 15 MB'}</small></button>{images.length > 0 && <label className="ocr-unit-selector">截图气温单位<select disabled={busy} value={temperatureUnit} onChange={event => setTemperatureUnit(event.target.value as typeof temperatureUnit)}><option value="celsius">摄氏 °C</option><option value="fahrenheit">华氏 °F</option><option value="">不确定，留空</option></select></label>}{images.length > 0 && <button disabled={busy} className="button primary recognize-button" onClick={recognize}>{busy ? `本地识别中 ${Math.round(progress * 100)}%` : '开始识别并核对 →'}</button>}<div className="upload-alternatives"><button disabled={busy} className="text-button" onClick={() => showEditor(emptyRecord())}>手动记录</button><span>·</span><button disabled={busy} className="text-button" onClick={() => showEditor(structuredClone(SAMPLE_RECORD), true)}>演示数据</button></div></div></section>
       <input ref={uploadInput} className="visually-hidden" type="file" multiple accept="image/png,image/jpeg,image/webp" aria-label="上传两张跑步截图" onChange={selectImages} />
       <input ref={importInput} className="visually-hidden" type="file" accept="application/json,.json" aria-label="导入 JSON 备份文件" onChange={readImport} />
-      <footer className="footer"><span>跑步一生 <span className="footer-arrow">↗</span> RUN FOR A LIFETIME</span><span>没有最后一天，只有下一次出发。</span></footer>
+      <footer className="footer"><span>跑步一生 <span className="footer-arrow">↗</span> RUN FOR A LIFETIME</span><span>没有最后一天，只有下一次出发。 <span data-testid="app-version">v{appVersion}</span></span></footer>
     </main>
     {editing && <Modal title="核对跑步记录" onClose={() => setEditing(null)}><RecordEditor key={editing.key} record={editing.record} sample={editing.sample} conflicts={editing.conflicts} recognizedTexts={editing.recognizedTexts} error={error} onSave={save} /></Modal>}
     {importPreview && <Modal title="核对备份导入" onClose={() => setImportPreview(null)}><div className="import-preview">{importPreview.recoveryRequired && <section className="conflicts"><strong>本机档案已损坏，需要通过备份恢复</strong><p>恢复将替换当前损坏档案。请先在设置中导出本机原始数据，核对下方备份内容，再明确确认替换。</p><label className="check"><input type="checkbox" checked={replaceDamaged} onChange={event => setReplaceDamaged(event.target.checked)} />我确认用此备份替换损坏的本机档案</label></section>}<p>读取到 <strong>{importPreview.records.length}</strong> 条训练记录。</p><p>确定重复：{importPreview.duplicates} 条，将自动跳过。</p><p>疑似重复：{importPreview.possibleDuplicates} 条。</p><div className="table-scroll"><table><thead><tr><th>日期</th><th>开始</th><th>时长</th><th>距离 km</th></tr></thead><tbody>{importPreview.records.map((record, index) => <tr key={index}><td>{record.date}</td><td>{record.startTime ?? '—'}</td><td>{formatDuration(record.durationSeconds)}</td><td>{record.distanceKm ?? '—'}</td></tr>)}</tbody></table></div>{importPreview.possibleDuplicates > 0 && <label className="check notice"><input type="checkbox" checked={importAllowed} onChange={event => setImportAllowed(event.target.checked)} />已核对疑似重复记录，确认它们属于不同训练</label>}<p>{importPreview.recoveryRequired ? '确认后使用此备份恢复本机档案。' : '仅在你确认后合并到本机记录，现有记录会保留。'}</p>{error && <p className="error" role="alert">{error}</p>}<button className="button primary save-button" disabled={(importPreview.possibleDuplicates > 0 && !importAllowed) || (!!importPreview.recoveryRequired && !replaceDamaged)} onClick={importData}>确认导入</button></div></Modal>}

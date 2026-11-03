@@ -237,3 +237,71 @@ it('preserves label/value pairs separated by OCR paragraph blank lines', () => {
     distanceKm: 5.28, averagePaceSecondsPerKm: 434, activeCaloriesKcal: 282, totalCaloriesKcal: 339,
   });
 });
+
+describe('distance mapping from recognized summary text', () => {
+  it.each([
+    ['户外跑步\n5.28公里', 5.28],
+    ['室内跑步\n\n5 . 28 公里', 5.28],
+    ['Outdoor Running 5,28 km', 5.28],
+    ['户外跑步 5.28 公里', 5.28],
+  ])('recovers an explicit distance adjacent to the activity heading: %s', (text, value) => {
+    expect(parseWorkoutText(text).distanceKm).toBe(value);
+  });
+  it('handles decimal spacing and decimal commas after a reliable distance label', () => {
+    expect(parseWorkoutText('距离 5 . 28 公里').distanceKm).toBe(5.28);
+    expect(parseWorkoutText('Distance 5,28 km').distanceKm).toBe(5.28);
+  });
+  it('uses later valid matching labels instead of stopping at an invalid first match', () => {
+    expect(parseWorkoutText('距离 5.28损坏单位\n距离 5.28公里').distanceKm).toBe(5.28);
+    expect(parseWorkoutText('Distance 5.28 km\nDistance 5.28 km').distanceKm).toBe(5.28);
+  });
+  it('leaves genuinely different distance candidates empty', () => {
+    expect(parseWorkoutText('距离 5.28公里\n距离 5.82公里').distanceKm).toBeNull();
+    expect(parseWorkoutText('户外跑步\n5.28公里\n距离 5.82公里').distanceKm).toBeNull();
+    expect(parseWorkoutText('户外跑步\n5.28公里\n室内跑步\n5.82公里').distanceKm).toBeNull();
+  });
+  it('never derives workout distance from pace, split distances, map scale or a bare number', () => {
+    for (const text of [
+      '户外跑步\n6\'55"/公里',
+      '户外跑步\n5.28',
+      '户外跑步\n地图比例尺\n1公里',
+      '户外跑步\n单段\n距离 1公里',
+      '单段\n户外跑步\n1公里',
+      '地图比例尺 1公里',
+      '5.28公里',
+    ]) expect(parseWorkoutText(text).distanceKm ?? null).toBeNull();
+  });
+  it('uses summary distance without being confused by explicit split or map distances', () => {
+    expect(parseWorkoutText('户外跑步\n5.28公里\n单段\n距离 1公里\n地图比例尺 0.5公里').distanceKm).toBe(5.28);
+  });
+});
+
+it('fills fields from phone OCR when metric units and a lower distance label are corrupted', () => {
+  const text=`天气
+气温 12°
+湿度 57%
+空气质量指数 83
+户外 跑步
+5.28 公 里
+2026年11月4日20:58-21:29 QAppleWatch
+体能训练时间 距离
+0:33:45 5.28 nE
+动态 干 卡 总 干 卡 数
+288 干 卡 337 和 干 卡
+总爬升高度 平均功率
+12 米 181 凤
+平均心率
+148 闪 /分
+平均配速
+5人`;
+  const record=parseWorkoutText(text,{temperatureUnit:'celsius'});
+  expect(record).toMatchObject({distanceKm:5.28,activeCaloriesKcal:288,totalCaloriesKcal:337,elevationGainMeters:12,averagePowerWatts:181,averageHeartRateBpm:148});
+  expect(record.averagePaceSecondsPerKm??null).toBeNull();
+});
+
+it('repairs only exact heart-rate unit glyphs and total-calorie suffixes under their own labels', () => {
+  for (const glyph of ['闪','从']) expect(parseWorkoutText(`平均心率 148${glyph}/分`).averageHeartRateBpm).toBe(148);
+  expect(parseWorkoutText('总千卡数 337和干卡').totalCaloriesKcal).toBe(337);
+  expect(parseWorkoutText('平均心率148spm\n平均步频148闪/分\n总千卡337kJ')).toMatchObject({averageHeartRateBpm:null,averageCadenceSpm:null,totalCaloriesKcal:null});
+  expect(parseWorkoutText('148闪/分\n337和干卡').averageHeartRateBpm).toBeUndefined();
+});
