@@ -9,7 +9,7 @@ import { confirmImport, deleteRecord, exportRawRecords, exportRecords, loadRecor
 import { Modal } from './components/Modal';
 import { RecordEditor } from './components/RecordEditor';
 import { formatDuration, milestones } from './components/format';
-import { Trends } from './components/Trends';
+import { AnalyticsOverview } from './components/AnalyticsOverview';
 import './styles.css';
 
 type Conflict = { field: string; values: unknown[] };
@@ -152,7 +152,7 @@ export default function App() {
           <div className="challenge-strip"><span><strong data-testid="completed-count">{stats.completedCount}</strong> 次达到 30 分钟</span><span>休息不会清零，随时接着跑。<span aria-hidden="true"> ↗</span></span></div>
         </section>
         {!records.length && <section className="first-run-note"><span className="note-symbol" aria-hidden="true">✳</span><div><h2>先记下一次，变化就有了起点。</h2><p>导入第一次跑步后，这里会开始呈现你的距离、配速与心率变化。</p></div><button className="text-button" onClick={() => setSection('import')}>导入第一程 <span aria-hidden="true">↗</span></button></section>}
-        <Trends records={records} />
+        <AnalyticsOverview records={records} />
         <section className="milestone-summary" aria-label="挑战里程碑"><div className="milestone-label"><span aria-hidden="true">✳</span><div><span className="eyebrow">下一个小小的庆祝</span><h2>{next.count} 次 · {next.title}</h2></div></div><div className="milestone-progress"><div className="progress-track"><div style={{ width: `${stageProgress}%` }} /></div><p>再完成 {next.count - stats.completedCount} 次 30 分钟跑步 · {next.reward}</p></div></section>
       </div>}
       {section === 'import' && <div className="import-page">

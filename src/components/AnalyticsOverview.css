@@ -1,0 +1,132 @@
+/* Toolbar ---------------------------------------------------------------- */
+.analytics-toolbar{margin-top:30px;border:1px solid var(--line);border-radius:18px;background:var(--surface);padding:24px 28px}
+.analytics-toolbar-head{display:flex;align-items:end;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.analytics-toolbar-head h2{font-size:22px;font-weight:600;letter-spacing:.4px;margin:8px 0 0}
+.analytics-range-label{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)}
+.analytics-range-label select{width:170px;margin:0;min-height:44px;background:#f2f4e8;color:var(--ink);border:1px solid #d5ddcb;border-radius:8px;padding:10px 12px;font-size:14px}
+.analytics-custom{display:flex;flex-wrap:wrap;align-items:end;gap:14px;margin-top:20px;padding-top:18px;border-top:1px dashed var(--line)}
+.analytics-custom label{display:flex;flex-direction:column;gap:7px;font-size:12px;color:#66745c;min-width:0}
+.analytics-custom input[type=date]{width:170px;min-height:44px}
+.analytics-apply{min-height:44px}
+.analytics-error{margin:14px 0 0;background:#f4e6df;color:#a3472c;padding:11px 13px;font-size:12px;line-height:1.8;border-radius:6px}
+.analytics-applied{margin:16px 0 0;font-size:12px;line-height:1.8;color:#4a6549;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:8px}
+.analytics-applied::before{content:'';width:6px;height:6px;border-radius:50%;background:#96ad7c;flex-shrink:0}
+
+/* Period numbers strip --------------------------------------------------- */
+.analytics-period{margin-top:24px;border:1px solid var(--line);border-radius:18px;background:#f3f4ea;padding:26px 28px 22px}
+.analytics-period-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:16px}
+.analytics-period-head p{margin:0;font-size:11px;line-height:1.8;color:var(--muted);max-width:460px}
+.analytics-period-strip{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:0;margin-top:20px}
+.analytics-period-cell{min-width:0;padding:2px 18px;border-left:1px solid var(--line)}
+.analytics-period-cell:first-child{border-left:0;padding-left:0}
+.analytics-index{display:block;font-family:var(--numeric);font-size:10px;letter-spacing:1px;color:#a7b294;font-variant-numeric:tabular-nums}
+.analytics-period-label{display:block;margin-top:7px;font-size:12px;color:#6d7a68;letter-spacing:.3px}
+.analytics-period-cell p{display:flex;align-items:baseline;gap:6px;margin:9px 0 0;white-space:nowrap}
+.analytics-period-cell strong{font-family:var(--numeric);font-size:clamp(21px,2.4vw,30px);font-weight:500;letter-spacing:-1px;line-height:1.15;color:var(--green);font-variant-numeric:tabular-nums}
+.analytics-period-cell small{font-size:11px;color:var(--muted)}
+.analytics-distance-note{margin:18px 0 0;font-size:11px;line-height:1.8;color:var(--muted);border-top:1px dashed var(--line);padding-top:13px}
+.analytics-coverage-note{margin:10px 0 0;font-size:11px;line-height:1.8;color:var(--muted)}
+.analytics-period-empty{margin:18px 0 0;font-size:12px;line-height:1.9;color:var(--muted);background:#eef0e2;border-radius:8px;padding:14px 16px}
+
+/* Calendar --------------------------------------------------------------- */
+.analytics-calendar{margin-top:24px;border:1px solid var(--line);border-radius:18px;background:var(--surface);padding:28px}
+.analytics-cal-head{display:flex;align-items:end;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:22px}
+.analytics-cal-head h2{font-size:22px;font-weight:600;letter-spacing:.4px;margin:8px 0 0}
+.analytics-cal-head p{margin:0 0 3px;font-size:11px;line-height:1.8;color:var(--muted);max-width:360px;text-align:right}
+.analytics-cal-span{margin:7px 0 0!important;font-size:11px;line-height:1.7;color:#6d7a68;font-variant-numeric:tabular-nums;text-align:left!important}
+.analytics-cal-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(230px,300px);gap:26px}
+.analytics-cal-main{min-width:0}
+/* Keep the heatmap a readable size on wide screens instead of stretching each cell. */
+.analytics-cal-layout{display:flex;gap:8px;min-width:0;max-width:520px}
+.analytics-cal-legend,.analytics-day-select{max-width:520px}
+.analytics-cal-weekdays{display:grid;grid-template-rows:repeat(7,1fr);gap:4px;flex-shrink:0}
+.analytics-cal-weekdays span{font-size:11px;color:var(--muted);display:flex;align-items:center;height:100%;white-space:nowrap}
+.analytics-cal-grid{flex:1;min-width:0;display:grid;grid-template-rows:repeat(7,1fr);grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:4px}
+.analytics-day{appearance:none;border:1px solid #dfe3d5;background:#f2f4ea;border-radius:3px;padding:0;min-height:0;aspect-ratio:1;width:100%;cursor:pointer;transition:transform .12s,background .12s,border-color .12s}
+.analytics-day[data-count="1"]{background:#d8e4bc;border-color:#c8d8a8}
+.analytics-day[data-count="2"]{background:#b8cd90;border-color:#a9c17f}
+.analytics-day[data-count="3"]{background:#8bab63;border-color:#7d9f55}
+.analytics-day[data-count="4"]{background:var(--green);border-color:var(--green)}
+.analytics-day[data-state="future"]{background:transparent;border:1px dashed #e2e4da;cursor:not-allowed}
+.analytics-day[data-state="outside"]{background:repeating-linear-gradient(45deg,#eef0e5,#eef0e5 3px,#e6e9dc 3px,#e6e9dc 6px);border-color:#e2e5d8;cursor:not-allowed}
+.analytics-day:disabled{opacity:.62}
+.analytics-day[data-state="in"]:hover{transform:translateY(-1px);border-color:#7d9f55}
+/* Selection ring is distinct from the keyboard focus outline. */
+.analytics-day[aria-pressed="true"]{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--green);position:relative;z-index:1}
+.analytics-day:focus-visible{outline:3px solid var(--orange);outline-offset:2px}
+.analytics-cal-legend{display:flex;align-items:center;gap:9px;margin-top:16px;flex-wrap:wrap}
+.analytics-legend-title{font-size:11px;color:#6d7a68}
+.analytics-legend-scale{display:inline-flex;gap:4px;align-items:center}
+.analytics-legend-scale i{width:13px;height:13px;border-radius:3px;border:1px solid #dfe3d5;background:#f2f4ea}
+.analytics-legend-scale i[data-count="1"]{background:#d8e4bc}
+.analytics-legend-scale i[data-count="2"]{background:#b8cd90}
+.analytics-legend-scale i[data-count="3"]{background:#8bab63}
+.analytics-legend-scale i[data-count="4"]{background:var(--green)}
+.analytics-legend-caption{font-size:11px;color:var(--muted)}
+.analytics-day-select{display:flex;align-items:center;gap:10px;margin-top:16px;font-size:12px;color:var(--muted)}
+.analytics-day-select select{max-width:260px;margin:0;min-height:44px;background:#f2f4e8;border:1px solid #d5ddcb;border-radius:8px;padding:10px 12px;font-size:14px}
+.analytics-day-panel{border:1px solid var(--line);border-radius:14px;background:#f7f7ef;padding:20px}
+.analytics-day-panel h3{font-size:17px;font-weight:600;margin:8px 0 0;display:flex;align-items:baseline;gap:9px}
+.analytics-day-panel h3 small{font-size:11px;color:var(--muted);font-weight:400}
+.analytics-day-figures{display:flex;flex-wrap:wrap;gap:16px;margin:16px 0;padding-bottom:15px;border-bottom:1px solid var(--line)}
+.analytics-day-figures span{font-size:11px;color:var(--muted);display:flex;align-items:baseline;gap:5px}
+.analytics-day-figures strong{font-family:var(--numeric);font-size:20px;font-weight:500;color:var(--green);font-variant-numeric:tabular-nums}
+.analytics-day-note{font-size:11px;color:var(--muted);margin:0 0 10px;line-height:1.8}
+.analytics-day-runs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.analytics-day-runs li{display:grid;grid-template-columns:auto 1fr auto;align-items:baseline;gap:12px;padding:9px 0;border-bottom:1px dashed var(--line);font-size:12px;font-variant-numeric:tabular-nums}
+.analytics-day-runs li:last-child{border-bottom:0}
+.analytics-run-time{font-family:var(--numeric);font-weight:600;color:var(--ink)}
+.analytics-run-distance{color:#5c6d57}
+.analytics-run-duration{color:var(--muted)}
+.analytics-day-empty{font-size:12px;line-height:1.9;color:var(--muted);margin:16px 0 0}
+
+@media (max-width:850px){
+  .analytics-period-strip{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 0}
+  .analytics-period-cell{padding:2px 16px}
+  .analytics-period-cell:nth-child(4){border-left:0;padding-left:0}
+  .analytics-period-cell:nth-child(3n+1){border-left:0;padding-left:0}
+  .analytics-cal-body{grid-template-columns:1fr;gap:20px}
+}
+@media (max-width:640px){
+  .analytics-toolbar{margin-top:24px;padding:20px 18px;border-radius:14px}
+  .analytics-toolbar-head h2{font-size:19px}
+  .analytics-range-label{width:100%;justify-content:space-between}
+  .analytics-range-label select{width:150px;font-size:16px}
+  .analytics-custom{gap:12px}
+  .analytics-custom label{flex:1;min-width:calc(50% - 6px)}
+  .analytics-custom input[type=date]{width:100%;font-size:16px}
+  .analytics-apply{width:100%}
+  .analytics-period{margin-top:19px;padding:21px 18px 18px;border-radius:14px}
+  .analytics-period-strip{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 0;margin-top:16px}
+  .analytics-period-cell{padding:0 14px}
+  .analytics-period-cell:nth-child(odd){border-left:0;padding-left:0}
+  .analytics-period-cell:nth-child(4){border-left:1px solid var(--line);padding-left:14px}
+  .analytics-period-cell strong{font-size:26px}
+  .analytics-period-head p{font-size:11px}
+  .analytics-calendar{margin-top:19px;padding:21px 16px;border-radius:14px}
+  .analytics-cal-head h2{font-size:19px}
+  .analytics-cal-head p{text-align:left;font-size:11px}
+  .analytics-cal-layout{gap:5px}
+  .analytics-cal-weekdays span{font-size:11px}
+  .analytics-cal-grid{gap:3px}
+  .analytics-day{border-radius:2px}
+  .analytics-cal-legend{margin-top:14px}
+  .analytics-legend-caption{font-size:11px}
+  .analytics-day-select{flex-direction:column;align-items:stretch;gap:7px;margin-top:15px}
+  .analytics-day-select select{max-width:100%;font-size:16px}
+  .analytics-day-panel{padding:17px}
+  .analytics-day-panel h3{font-size:16px}
+  .analytics-day-runs li{font-size:12px;gap:8px}
+  .analytics-day-empty{font-size:12px}
+}
+@media (max-width:360px){
+  .analytics-calendar{padding:18px 12px}
+  .analytics-cal-layout{gap:4px}
+  .analytics-cal-grid{gap:2px}
+  .analytics-cal-weekdays{gap:2px}
+  .analytics-cal-weekdays span{font-size:11px}
+}
+@media (prefers-reduced-motion:no-preference){
+  .analytics-day[data-state="in"][data-count]:not([data-count="0"]){animation:analytics-day-in .28s ease-out}
+  @keyframes analytics-day-in{from{opacity:.35}to{opacity:1}}
+}
