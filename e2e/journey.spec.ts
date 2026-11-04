@@ -5,6 +5,18 @@ const openImport = (page: Page) => page.getByRole('navigation', { name: '主导�
 const openStats = (page: Page) => page.getByRole('navigation', { name: '主导航' }).getByRole('button', { name: '统计', exact: true }).click();
 const savedCount = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('run-for-life:v1') ?? '{"records":[]}').records.length);
 
+test('switching from a long import journal returns statistics to the top', async ({ page }) => {
+  const records = Array.from({ length: 12 }, (_, index) => ({ ...SAMPLE_RECORD, id: `scroll-${index}`, date: `2026-11-${String(index + 1).padStart(2, '0')}` }));
+  await page.addInitScript(runs => localStorage.setItem('run-for-life:v1', JSON.stringify({ version: 1, records: runs })), records);
+  await page.goto('/');
+  await openImport(page);
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  await openStats(page);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  await expect(page.getByTestId('total-runs')).toBeInViewport();
+});
+
 // This is the public workflow: statistics and import are the only two destinations.
 test('two-panel navigation separates statistics from importing and keeps an empty journey honest', async ({ page }) => {
   await page.goto('/');

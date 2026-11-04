@@ -39,6 +39,7 @@ export default function App() {
   const [deleting, setDeleting] = useState<RunRecord | null>(null);
   const uploadInput = useRef<HTMLInputElement>(null);
   const importInput = useRef<HTMLInputElement>(null);
+  useEffect(() => { window.scrollTo(0, 0); }, [section]);
   useEffect(() => {
     const ready = () => setUpdateReady(true);
     window.addEventListener('app-update-ready', ready);
