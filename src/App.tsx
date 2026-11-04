@@ -5,6 +5,7 @@ import { mergeWorkoutResults, parseWorkoutText } from './domain/parser';
 import { getStats } from './domain/records';
 import { SAMPLE_RECORD } from './domain/sample';
 import { recognizeScreenshots } from './services/ocr';
+import { exportRunsCsv, exportSplitsCsv } from './services/export-csv';
 import { confirmImport, deleteRecord, exportRawRecords, exportRecords, loadRecords, previewImport, saveRecord } from './services/storage';
 import { Modal } from './components/Modal';
 import { RecordEditor } from './components/RecordEditor';
@@ -16,6 +17,8 @@ type Conflict = { field: string; values: unknown[] };
 type Editing = { record: RunRecord; conflicts: Conflict[]; sample: boolean; key: number; recognizedTexts?: string[]; timezoneSuggested?: boolean };
 type ImportPreview = ReturnType<typeof previewImport>;
 const errorText = (cause: unknown) => cause instanceof Error ? cause.message : '操作未完成，请重试。';
+// Browser-local calendar date; toISOString would shift the day across timezones.
+const localDate = () => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; };
 
 export default function App() {
   const [initial] = useState(() => {
@@ -47,6 +50,7 @@ export default function App() {
     return () => window.removeEventListener('app-update-ready', ready);
   }, []);
   const stats = getStats(records);
+  const hasSplits = records.some(record => Array.isArray(record.splits) && record.splits.length > 0);
   const missingDistances = records.filter(record => record.distanceKm === null).length;
   const distanceDisplay = records.length > 0 && missingDistances === records.length ? '—' : stats.distanceKm.toFixed(2);
   const next = milestones.find(milestone => milestone.count > stats.completedCount) ?? { count: Math.ceil((stats.completedCount + 1) / 500) * 500, title: '继续奔跑', reward: '为下一程选择一份自己的奖励' };
@@ -95,6 +99,17 @@ export default function App() {
       const link = document.createElement('a'); link.href = url; link.download = `跑步一生-${raw ? '原始数据-' : ''}${new Date().toISOString().slice(0, 10)}.json`;
       link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       setMessage('备份文件已生成，请妥善保存。');
+    } catch (cause) { setMessage(errorText(cause)); }
+  };
+  const downloadCsv = (kind: 'runs' | 'splits') => {
+    try {
+      const label = kind === 'runs' ? '训练指标' : '分段';
+      const csv = kind === 'runs' ? exportRunsCsv(records) : exportSplitsCsv(records);
+      // The exporter already writes the BOM; the Blob must not add another.
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      const link = document.createElement('a'); link.href = url; link.download = `跑步一生-${label}-${localDate()}.csv`;
+      link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setMessage('CSV 已生成，可用 Excel 或 Numbers 打开。');
     } catch (cause) { setMessage(errorText(cause)); }
   };
   const readImport = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -165,7 +180,7 @@ export default function App() {
           </div>
         </section>
         <section className="history-section" aria-label="已保存的跑步记录"><div className="section-heading"><div><span className="eyebrow">YOUR RUNNING JOURNAL</span><h2>已保存的记录 <span>{records.length}</span></h2></div><span className="section-caption">核对、编辑，或删除一条记录</span></div>{history()}</section>
-        <details className="backup-panel"><summary><span><span className="backup-icon" aria-hidden="true">↓</span>备份与使用说明</span><small>JSON 导入 / 导出 <span aria-hidden="true">＋</span></small></summary><div className="settings-panel"><h3>让记录陪你跑得更久。</h3><p>数据保存在当前浏览器，不会自动同步到其他设备。换手机、清除网站数据前，请先导出备份。</p><div className="backup-actions"><button className="button primary" onClick={() => download()}>导出 JSON 备份 ↗</button><button disabled={busy} className="button secondary" onClick={() => importInput.current?.click()}>导入 JSON 备份</button></div><button className="text-button" onClick={() => download(true)}>导出本机原始数据 ↗</button><p>如果档案损坏，先保存原始数据，再通过有效备份恢复。原始文件用于保留现场，不保证可以直接导入。</p><div className="usage-notes"><div><h3>添加到 iPhone 主屏幕</h3><p>用 Safari 打开，点击分享，选择“添加到主屏幕”，以后可以从桌面进入。</p></div><div><h3>30 分钟挑战规则</h3><p>单次时长达到 30 分钟记 1 次，60 分钟仍计 1 次。不足 30 分钟也可以保留记录。休息不扣分、不清零。</p></div></div></div></details>
+        <details className="backup-panel"><summary><span><span className="backup-icon" aria-hidden="true">↓</span>备份与使用说明</span><small>JSON 导入 / 导出 <span aria-hidden="true">＋</span></small></summary><div className="settings-panel"><h3>让记录陪你跑得更久。</h3><p>数据保存在当前浏览器，不会自动同步到其他设备。换手机、清除网站数据前，请先导出备份。</p><div className="backup-actions"><button className="button primary" onClick={() => download()}>导出 JSON 备份 ↗</button><button disabled={busy} className="button secondary" onClick={() => importInput.current?.click()}>导入 JSON 备份</button></div><button className="text-button" onClick={() => download(true)}>导出本机原始数据 ↗</button><p>如果档案损坏，先保存原始数据，再通过有效备份恢复。原始文件用于保留现场，不保证可以直接导入。</p><div className="csv-export"><h3>表格分析</h3><div className="backup-actions"><button disabled={busy || !records.length} className="button secondary" onClick={() => downloadCsv('runs')}>导出训练 CSV</button><button disabled={busy || !hasSplits} className="button secondary" onClick={() => downloadCsv('splits')}>导出分段 CSV</button></div><p>导出本机全部记录，可用 Excel 或 Numbers 打开；完整备份请使用 JSON。</p></div><div className="usage-notes"><div><h3>添加到 iPhone 主屏幕</h3><p>用 Safari 打开，点击分享，选择“添加到主屏幕”，以后可以从桌面进入。</p></div><div><h3>30 分钟挑战规则</h3><p>单次时长达到 30 分钟记 1 次，60 分钟仍计 1 次。不足 30 分钟也可以保留记录。休息不扣分、不清零。</p></div></div></div></details>
       </div>}
       <input ref={uploadInput} className="visually-hidden" type="file" multiple accept="image/png,image/jpeg,image/webp" aria-label="上传两张跑步截图" onChange={selectImages} />
       <input ref={importInput} className="visually-hidden" type="file" accept="application/json,.json" aria-label="导入 JSON 备份文件" onChange={readImport} />

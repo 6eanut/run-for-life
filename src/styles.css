@@ -150,6 +150,7 @@ h1 { font-weight: 650; font-size: 34px; line-height: 1.4; letter-spacing: -.7px;
 .settings-panel h3 { font-weight: 600; font-size: 15px; margin: 15px 0 8px; }
 .settings-panel p { font-size: 12px; line-height: 1.9; color: #74806c; max-width: 800px; }
 .backup-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0 6px; }
+.csv-export { border-top: 1px solid var(--line); margin-top: 22px; padding-top: 6px; }
 .usage-notes { display: grid; grid-template-columns: 1fr 1fr; gap: 35px; border-top: 1px solid var(--line); margin-top: 22px; padding-top: 6px; }
 .footer { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 30px 0; margin-top: 5px; font-size: 10px; color: #8a9580; }
 .footer > span:first-child { display: flex; align-items: center; gap: 7px; }
