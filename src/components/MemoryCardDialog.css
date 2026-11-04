@@ -1,0 +1,46 @@
+/* A single-piece souvenir sheet: the modal stays quiet so the card is the only
+   focal point. The preview never grows tall enough to push the save/close
+   controls out of reach, on desktop or at 320px. */
+.memory-card-dialog{display:flex;flex-direction:column;gap:16px;min-width:0}
+.memory-card-lead{margin:0;font-size:13px;line-height:1.8;color:#5c6d57}
+
+/* Matte frame keeps the cream card legible against the cream modal. The explicit
+   dvh cap on the image itself (not only the frame) guarantees the tall portrait
+   card never pushes the save/close controls out of reach. */
+.memory-card-frame{display:grid;place-items:center;min-width:0;min-height:180px;max-height:52dvh;
+  border:1px solid var(--line);border-radius:12px;background:#e6ead9;padding:14px;overflow:hidden}
+/* The frame's max-height is border-box (padding 14px·2 + border 1px·2 = 30px), so
+   the image subtracts that budget too: it can never exceed the frame's inner box
+   and leave a clipped half-border on shorter viewports. */
+.memory-card-preview{display:block;width:auto;height:auto;max-width:100%;
+  max-height:min(48dvh, calc(52dvh - 30px));
+  object-fit:contain;border-radius:6px;box-shadow:0 10px 34px #1b2c1f2e}
+.memory-card-frame-note{font-size:12px;letter-spacing:.4px;color:#8a9680}
+
+.memory-card-spinner{width:30px;height:30px;border-radius:50%;border:3px solid #cdd7bd;
+  border-top-color:var(--green);animation:memory-card-spin .9s linear infinite}
+@keyframes memory-card-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.memory-card-spinner{animation:none}}
+
+.memory-card-status{margin:0;font-size:12px;line-height:1.8;color:var(--muted)}
+.memory-card-error{margin:0;font-size:12px;line-height:1.8;color:#a3472c;background:#f4e6df;
+  border-radius:7px;padding:11px 13px}
+
+.memory-card-option{display:flex;align-items:center;gap:10px;min-height:44px;font-size:13px;color:var(--ink)}
+.memory-card-option input{width:18px;height:18px;margin:0}
+.memory-card-option small{font-size:11px;color:var(--muted)}
+.memory-card-option.is-disabled{color:#9aa48f}
+.memory-card-option.is-disabled small{margin-left:auto}
+
+.memory-card-actions{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:wrap;margin-top:2px}
+.memory-card-save{min-width:132px}
+.memory-card-actions .button{min-height:44px}
+
+@media (max-width:520px){
+  .memory-card-frame{min-height:150px;max-height:44dvh;padding:10px}
+  /* Mobile frame padding 10px·2 + border 1px·2 = 22px inner budget. */
+  .memory-card-preview{max-height:min(40dvh, calc(44dvh - 22px))}
+  .memory-card-actions{justify-content:stretch}
+  .memory-card-actions .button{flex:1 1 auto}
+  .memory-card-save{min-width:0}
+}

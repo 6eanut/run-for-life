@@ -5,8 +5,10 @@
 .run-report::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,#b8cb98,var(--green) 55%,transparent)}
 .run-report-head{display:flex;align-items:end;justify-content:space-between;gap:20px;flex-wrap:wrap}
 .run-report-head h2{font-size:22px;font-weight:600;letter-spacing:.4px;margin:8px 0 0}
+.run-report-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end;min-width:0}
 .run-report-pick{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)}
 .run-report-pick select{width:min(300px,52vw);margin:0;min-height:44px;background:#f2f4e8;color:var(--ink);border:1px solid #d5ddcb;border-radius:8px;padding:10px 12px;font-size:14px}
+.run-report-card-button{min-height:44px;white-space:nowrap}
 
 /* Hero band --------------------------------------------------------------- */
 .run-report-hero{margin-top:22px;border:1px solid #e0e4d4;border-radius:14px;background:#f3f5ea;padding:22px 24px}
@@ -121,8 +123,10 @@
 @media (max-width:640px){
   .run-report{margin-top:24px;padding:20px 18px;border-radius:14px}
   .run-report-head h2{font-size:19px}
+  .run-report-controls{width:100%;justify-content:space-between}
   .run-report-pick{width:100%;justify-content:space-between}
   .run-report-pick select{width:auto;flex:1;max-width:230px;font-size:16px}
+  .run-report-card-button{width:100%}
   .run-report-hero{padding:18px 16px;border-radius:12px}
   .run-report-date{font-size:18px}
   .run-report-effort{align-items:flex-start;text-align:left}

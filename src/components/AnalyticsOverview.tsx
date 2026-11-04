@@ -41,7 +41,7 @@ const periodDurationParts = (value: number | null): { value: string; unit: strin
   return { value: String(value), unit: '秒' };
 };
 
-export function AnalyticsOverview({ records }: { records: RunRecord[] }) {
+export function AnalyticsOverview({ records, busy = false }: { records: RunRecord[]; busy?: boolean }) {
   const [today] = useState(() => localDate(new Date()));
   const [preset, setPreset] = useState<StatsRange>('all');
   const [customStart, setCustomStart] = useState('');
@@ -153,7 +153,7 @@ export function AnalyticsOverview({ records }: { records: RunRecord[] }) {
         <span className="run-report-disclosure-chevron" aria-hidden="true">⌄</span>
       </summary>
       <div className="run-report-disclosure-body">
-        <RunReport records={filteredRecords} />
+        <RunReport records={filteredRecords} busy={busy} />
       </div>
     </details>
 

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { RunRecord } from '../domain/model';
+import { MemoryCardDialog } from './MemoryCardDialog';
 import {
   analyzeSplits,
   getMetricCoverage,
@@ -273,8 +274,11 @@ function PersonalBests({ records }: { records: RunRecord[] }) {
   </section>;
 }
 
-export function RunReport({ records }: { records: RunRecord[] }) {
+export function RunReport({ records, busy = false }: { records: RunRecord[]; busy?: boolean }) {
   const [selectedKey, setSelectedKey] = useState('');
+  // A frozen snapshot of the exact run being turned into a card, captured on click
+  // so a later range change or re-render can never swap which run the dialog shows.
+  const [cardRecord, setCardRecord] = useState<RunRecord | null>(null);
   const recent = useMemo(() => getRecentRuns(records), [records]);
   const keyed = useMemo(() => keyRecords(recent), [recent]);
   const top = keyed.slice(0, MAX_PICKS);
@@ -288,11 +292,15 @@ export function RunReport({ records }: { records: RunRecord[] }) {
     <section className="run-report" aria-label="跑步回顾">
       <div className="run-report-head">
         <div><span className="eyebrow">ONE RUN, LOOKED BACK</span><h2>跑步回顾</h2></div>
-        {keyed.length > 0 && <label className="run-report-pick"><span>回顾哪次跑步</span>
-          <select aria-label="回顾哪次跑步" value={active?.key ?? ''} onChange={event => setSelectedKey(event.target.value)}>
-            {options.map(entry => <option key={entry.key} value={entry.key}>{optionLabel(entry.record)}</option>)}
-          </select>
-        </label>}
+        {keyed.length > 0 && <div className="run-report-controls">
+          <label className="run-report-pick"><span>回顾哪次跑步</span>
+            <select aria-label="回顾哪次跑步" value={active?.key ?? ''} onChange={event => setSelectedKey(event.target.value)}>
+              {options.map(entry => <option key={entry.key} value={entry.key}>{optionLabel(entry.record)}</option>)}
+            </select>
+          </label>
+          {active && <button type="button" className="button secondary run-report-card-button" disabled={busy}
+            onClick={() => setCardRecord(active.record)}>生成纪念卡</button>}
+        </div>}
       </div>
       {active
         ? <RunReportCard key={active.key} record={active.record} />
@@ -300,5 +308,6 @@ export function RunReport({ records }: { records: RunRecord[] }) {
       {keyed.length > 0 && <p className="run-report-scope">回顾最近 {MAX_PICKS} 次；更早训练可用上方日期筛选。</p>}
     </section>
     <PersonalBests records={records} />
+    {cardRecord && <MemoryCardDialog record={cardRecord} onClose={() => setCardRecord(null)} />}
   </>;
 }
