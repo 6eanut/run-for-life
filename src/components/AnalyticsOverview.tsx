@@ -10,6 +10,7 @@ import {
   type StatsRange,
 } from '../domain/analytics';
 import { formatDuration } from './format';
+import { RunReport } from './RunReport';
 import { Trends } from './Trends';
 import './AnalyticsOverview.css';
 
@@ -141,6 +142,20 @@ export function AnalyticsOverview({ records }: { records: RunRecord[] }) {
       <p className="analytics-coverage-note">热量与爬升为已记录数据的合计。</p>
       {!filteredRecords.length && <p className="analytics-period-empty" role="status">这段时间还没有跑步记录。换一个范围，或去「数据导入」记下一次出发。</p>}
     </section>
+
+    <details className="run-report-disclosure">
+      <summary>
+        <span className="run-report-disclosure-copy">
+          <span className="eyebrow">ONE RUN, LOOKED BACK</span>
+          <strong>跑步回顾与个人纪录</strong>
+          <small>天气、分段和每一次特别的记录</small>
+        </span>
+        <span className="run-report-disclosure-chevron" aria-hidden="true">⌄</span>
+      </summary>
+      <div className="run-report-disclosure-body">
+        <RunReport records={filteredRecords} />
+      </div>
+    </details>
 
     <section className="analytics-calendar" aria-label="12周跑步日历">
       <div className="analytics-cal-head">
