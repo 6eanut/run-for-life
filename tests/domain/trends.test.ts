@@ -292,6 +292,38 @@ describe('running trends', () => {
     expect(labels).toEqual(['9.5', '9', '8.5']);
   });
 
+  it('keeps distance axis ticks distinguishable above ten kilometres', () => {
+    const axisTicks = (metric: TrendMetric, record: Partial<RunRecord>) => {
+      const geometry = chartGeometry(getTrendSeries([run({ date: '2026-11-01', ...record })], metric).points);
+      const labels = [geometry.max, (geometry.min + geometry.max) / 2, geometry.min].map(value => formatAxisLabel(metric, value));
+      expect(labels).toHaveLength(3);
+      expect(new Set(labels).size).toBe(3);
+      return labels;
+    };
+    // A single 12.4 km run used to render 13 / 12 / 12.
+    expect(axisTicks('distance', { distanceKm: 12.4 })).toEqual(['13', '12.4', '11.8']);
+    const twoRuns = chartGeometry(getTrendSeries([
+      run({ date: '2026-11-01', distanceKm: 12.4 }),
+      run({ date: '2026-11-02', distanceKm: 12.6 }),
+    ], 'distance').points);
+    const labels = [twoRuns.max, (twoRuns.min + twoRuns.max) / 2, twoRuns.min].map(value => formatAxisLabel('distance', value));
+    expect(new Set(labels).size).toBe(3);
+  });
+
+  it('keeps ordinary non-time numeric axis ticks distinguishable too', () => {
+    const axisTicks = (metric: TrendMetric, record: Partial<RunRecord>) => {
+      const geometry = chartGeometry(getTrendSeries([run({ date: '2026-11-01', ...record })], metric).points);
+      const labels = [geometry.max, (geometry.min + geometry.max) / 2, geometry.min].map(value => formatAxisLabel(metric, value));
+      expect(new Set(labels).size).toBe(3);
+    };
+    // A legitimate 0 W reading used to render 1 / 1 / 0.
+    axisTicks('power', { averagePowerWatts: 0 });
+    // A minimal cadence of 1 used to collapse toward whole numbers.
+    axisTicks('cadence', { averageCadenceSpm: 1 });
+    // Heart rate and calories above their ranges behave the same way.
+    axisTicks('heartRate', { averageHeartRateBpm: 20 });
+  });
+
   it('describes a change with the unit that matches the metric', () => {
     expect(formatMetricDifference('distance', 1.2)).toBe('最新较最早有数据的记录 +1.20 公里');
     expect(formatMetricDifference('pace', -60)).toBe('最新较最早有数据的记录快 1′00″/公里');

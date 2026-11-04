@@ -126,8 +126,12 @@ export function formatMetricValue(metric: TrendMetric, value: number | null): st
 
 export function formatAxisLabel(metric: TrendMetric, value: number): string {
   // Axis ticks keep meaningful decimals so a single point never renders duplicate readings.
-  if (metric === 'distance') return value < 10 ? value.toFixed(1) : String(Math.round(value));
-  return formatMetricValue(metric, value);
+  // Distance keeps one decimal even above 10 km; the stored value itself still shows two.
+  if (metric === 'distance') return trimmedDecimal(value, 1);
+  // Time metrics keep their clock/pace reading; other numeric axes keep decimals so a
+  // small or zero range (e.g. 0 W, cadence 1) does not collapse three ticks into one.
+  if (metric === 'duration' || metric === 'pace') return formatMetricValue(metric, value);
+  return trimmedDecimal(value, metric === 'elevation' ? 2 : 1);
 }
 
 // The change note uses a unit that reads naturally, not the display range shown beside the value.
