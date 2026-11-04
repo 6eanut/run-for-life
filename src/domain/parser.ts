@@ -170,6 +170,44 @@ function parseSplits(text:string):Split[] {
   });
 }
 
+const EFFORT_LABEL=/^(?:耗能|运动强度|努力程度|Effort\b)/i;
+const EFFORT_WORD='适\\s*中|轻\\s*松|吃\\s*力|困\\s*难|moderate\\b|easy\\b|hard\\b';
+const EFFORT_DECORATION=/^[+±二土士十:：=|¦·*^<>《》«»（）()\s]+/;
+
+function effortCard(payload:string):Partial<Pick<RunRecord,'effortLevel'|'effortDescription'>> {
+  const text=payload.replace(EFFORT_DECORATION,'').trim();
+  if(/千卡|干卡|大卡|卡路里|kcal|kj|calories|次\s*\/\s*分|bpm|spm|瓦|公里|\bkm\b/i.test(text))return {};
+  const scales=[...text.matchAll(/\/\s*(\d+(?:\.\d+)?)/g)];
+  if((text.match(/\//g)?.length??0)!==scales.length||scales.some(match=>match[1]!=='10'))return {};
+  const score=`(?:10|[1-9])(?:\\s*\\/\\s*10)?(?=$|\\s|[（(]|${EFFORT_WORD})`;
+  if(!new RegExp(`^(?:${score}|${EFFORT_WORD})`,'i').test(text))return {};
+  const levels=[...new Set([...text.matchAll(new RegExp(`(?:^|\\s|[（(])((?:10|[1-9]))(?:\\s*\\/\\s*10)?(?=$|\\s|[（(]|${EFFORT_WORD})`,'gi'))].map(match=>Number(match[1])))];
+  const descriptions=[...new Set([...text.matchAll(new RegExp(EFFORT_WORD,'gi'))].map(match=>match[0].replace(/\s/g,'').toLowerCase()))];
+  return {...(levels.length?{effortLevel:levels.length===1?levels[0]:null}:{}),...(descriptions.length?{effortDescription:descriptions.length===1?descriptions[0]:null}:{})};
+}
+
+function parseEffortCards(...sources:string[]):Partial<Pick<RunRecord,'effortLevel'|'effortDescription'>> {
+  const boundary=new RegExp(`^(?:${COLUMN_LABELS.join('|')}|分段|单段|splits|心率|奖章|天气|户外跑步|室内跑步|体能训练详细信息)`,'i');
+  const cards=sources.flatMap(source=>{
+    const lines=source.split('\n').map(line=>line.trim()).filter(Boolean);
+    return lines.flatMap((line,index)=>{
+      const label=line.match(EFFORT_LABEL);if(!label)return [];
+      const content=line.slice(label[0].length).replace(EFFORT_DECORATION,'').trim();
+      const rows=[content];
+      for(let next=index+1;next<lines.length&&next<=index+4;next+=1){
+        if(boundary.test(lines[next]))break;
+        rows.push(lines[next].replace(EFFORT_DECORATION,''));
+      }
+      const previous=lines[index-1]??'';
+      if(!content&&new RegExp(`^(?:10|[1-9])(?:\\s*/\\s*10)?\\s*(?:${EFFORT_WORD})[\\s«»|]*$`,'i').test(previous))rows.unshift(previous);
+      return [effortCard(rows.join(' '))];
+    });
+  });
+  const levels=[...new Set(cards.flatMap(card=>card.effortLevel===undefined?[]:[card.effortLevel]))];
+  const descriptions=[...new Set(cards.flatMap(card=>card.effortDescription===undefined?[]:[card.effortDescription]))];
+  return {...(levels.length?{effortLevel:levels.length===1?levels[0]:null}:{}),...(descriptions.length?{effortDescription:descriptions.length===1?descriptions[0]:null}:{})};
+}
+
 export interface WorkoutParseOptions {temperatureUnit?:'celsius'|'fahrenheit'}
 
 function temperatureValue(raw:string,suffix:string,options:WorkoutParseOptions):number|null {
@@ -234,7 +272,6 @@ export function parseWorkoutText(input:string,options:WorkoutParseOptions={}):Pa
     ['activeCaloriesKcal','动态千卡|动态消耗|活动千卡|动态卡路里|Active Calories'],
     ['totalCaloriesKcal','总千卡数|总千卡|总消耗|总卡路里|Total Calories'],
     ['elevationGainMeters','累计爬升|总爬升高度|爬升高度|Elevation Gain'],
-    ['effortLevel','运动强度|努力程度|耗能|Effort'],
     ['temperatureCelsius','气温|温度|Temperature'],
     ['humidityPercent','湿度|Humidity'],
     ['airQualityIndex','空气质量指数|空气质量|AQI'],
@@ -243,8 +280,7 @@ export function parseWorkoutText(input:string,options:WorkoutParseOptions={}):Pa
     const value=labeledValue(text,label,`${field==='temperatureCelsius'?'-?':''}${NUMBER}`);
     if(value!==null) record={...record,[field]:field==='temperatureCelsius'?temperatureValue(value.raw,value.suffix,options):unitAllowed(field,value.suffix)?Number(numericText(value.raw)):null};
   }
-  const effort=captured(text,'运动强度|努力程度|耗能|Effort',`${NUMBER}\\s*(?:/\\s*10)?\\s*[（(]?\\s*(?:适中|轻松|吃力|困难|moderate|easy|hard)`);
-  if(effort) record={...record,effortDescription:effort.match(/适中|轻松|吃力|困难|moderate|easy|hard/i)?.[0]??null};
+  record={...record,...parseEffortCards(normalized,text)};
   const location=captured(text,'地点|Location','[^\\n]{1,100}');
   if(location) record={...record,location:location.trim()};
   else {

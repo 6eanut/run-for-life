@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 test('real browser OCR extracts synthetic screenshots then waits for confirmation', async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto('/');
+  await page.getByRole('navigation', { name: '主导航' }).getByRole('button', { name: '数据导入', exact: true }).click();
   const screenshots = await page.evaluate(async () => {
     const texts = [
       ['Outdoor Running', '2026-11-02', '20:58 - 21:29', 'Workout Time', '0:30:12', 'Distance', '4.36 km', 'Average Pace', '6:55 /km'],
@@ -25,7 +26,7 @@ test('real browser OCR extracts synthetic screenshots then waits for confirmatio
   await expect(page.getByLabel('跑步距离（公里）', { exact: true })).toHaveValue('4.36');
   await expect(page.getByLabel('平均心率（次/分）', { exact: true })).toHaveValue('161');
   await expect(page.getByLabel('平均步频（步/分）', { exact: true })).toHaveValue('161');
-  await expect(page.getByTestId('completed-count')).toHaveText('0');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('run-for-life:v1') ?? '{"records":[]}').records.length)).toBe(0);
   await page.getByRole('button', { name: '确认并保存' }).click();
   await expect(page.getByTestId('completed-count')).toHaveText('1');
 });

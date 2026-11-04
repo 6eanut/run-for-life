@@ -305,3 +305,39 @@ it('repairs only exact heart-rate unit glyphs and total-calorie suffixes under t
   expect(parseWorkoutText('平均心率148spm\n平均步频148闪/分\n总千卡337kJ')).toMatchObject({averageHeartRateBpm:null,averageCadenceSpm:null,totalCaloriesKcal:null});
   expect(parseWorkoutText('148闪/分\n337和干卡').averageHeartRateBpm).toBeUndefined();
 });
+
+describe('bounded effort-card parsing', () => {
+  it('preserves effort values in a shared two-column row', () => {
+    expect(parseWorkoutText('平均功率 运动强度\n177瓦 6适中')).toMatchObject({averagePowerWatts:177,effortLevel:6,effortDescription:'适中'});
+    expect(parseWorkoutText('运动强度 平均功率\n8吃力 190瓦')).toMatchObject({averagePowerWatts:190,effortLevel:8,effortDescription:'吃力'});
+  });
+  it.each(['6 / 11 适中','6 / 100 适中','6 / 10.5 适中','6 / x 适中'])('rejects a malformed effort scale: %s', value => {
+    const record=parseWorkoutText(`运动强度 ${value}`);
+    expect(record.effortLevel??null).toBeNull();
+    expect(record.effortDescription??null).toBeNull();
+  });
+  it('keeps the explicit ten-point scale', () => {
+    expect(parseWorkoutText('运动强度 6 / 10 适中')).toMatchObject({effortLevel:6,effortDescription:'适中'});
+  });
+  it.each(['二','土','士','十','±','+'])('ignores the decorative control glyph %s after an explicit effort label', glyph => {
+    expect(parseWorkoutText(`耗 能 ${glyph}\n7 吃力 «`)).toMatchObject({effortLevel:7,effortDescription:'吃力'});
+  });
+  it('reads separately wrapped level and description, including split Chinese characters', () => {
+    expect(parseWorkoutText('运动强度 二\n\n5\n适\n中\n单段\n1 05:00')).toMatchObject({effortLevel:5,effortDescription:'适中'});
+    expect(parseWorkoutText('努力程度\n轻 松\n3')).toMatchObject({effortLevel:3,effortDescription:'轻松'});
+  });
+  it('reads a value-first card only when it directly adjoins an explicit effort label', () => {
+    expect(parseWorkoutText('8 困难\n运动强度')).toMatchObject({effortLevel:8,effortDescription:'困难'});
+    expect(parseWorkoutText('8 困难')).not.toHaveProperty('effortLevel');
+    expect(parseWorkoutText('8\n运动强度')).not.toHaveProperty('effortLevel');
+  });
+  it('keeps conflicting card readings empty instead of trusting the first', () => {
+    expect(parseWorkoutText('耗能 二\n5 适中\n运动强度\n8 困难')).toMatchObject({effortLevel:null,effortDescription:null});
+    expect(parseWorkoutText('耗能 二\n5 适中\n运动强度\n5 适中')).toMatchObject({effortLevel:5,effortDescription:'适中'});
+  });
+  it.each(['耗能 279千卡','耗能 6 千卡','耗能 6kJ','耗能 二\n平均心率\n7 适中','耗能 二\n单段\n7 适中','耗能 二\n心率图\n7 适中','耗能 二','运动强度 -7 适中','运动强度 7.5 适中','运动强度 11 适中'])('does not relabel calories, other sections or invalid effort values: %s', text => {
+    const record=parseWorkoutText(text);
+    expect(record.effortLevel??null).toBeNull();
+    expect(record.effortDescription??null).toBeNull();
+  });
+});

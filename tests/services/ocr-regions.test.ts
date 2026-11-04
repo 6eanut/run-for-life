@@ -12,6 +12,13 @@ function page(label='平均 配 速'):OcrPage {
 }
 const canvas={width:1000,height:1200} as HTMLCanvasElement;
 
+function effortPage(label='耗 能 二'):OcrPage {
+  return {blocks:[{paragraphs:[{lines:[
+    {bbox:{x0:80,y0:400,x1:210,y1:440},words:[{text:label,bbox:{x0:80,y0:400,x1:210,y1:440}}]},
+    {bbox:{x0:95,y0:460,x1:900,y1:520},words:[{text:'8 吃力',bbox:{x0:95,y0:460,x1:310,y1:520}},{text:'bar',bbox:{x0:800,y0:460,x1:900,y1:520}}]},
+  ]}]}]};
+}
+
 describe('label-derived missing metric regions',()=>{
   it('finds the value below average pace without including the left column or next row',()=>{
     const regions=findMetricRegions(page(),1000,1200);
@@ -42,6 +49,44 @@ describe('label-derived missing metric regions',()=>{
     const regions=findMetricRegions(page(),700,510);
     expect(regions[0].rectangle.top+regions[0].rectangle.height).toBeLessThanOrEqual(510);
     expect(findMetricRegions(page(),500,300)).toEqual([]);
+  });
+});
+
+describe('missing effort from its image region',()=>{
+  it.each(['耗 能 二','运动 强度','努力 程度','Effort'])('finds bounded effort values for %s and excludes the distant bar icon',label=>{
+    const regions=findMetricRegions(effortPage(label),1000,1200);
+    expect(regions).toHaveLength(1);
+    expect(regions[0].field).toBe('effortLevel');
+    const r=regions[0].rectangle;
+    expect(r.left).toBeLessThan(95);
+    expect(r.top).toBeLessThan(460);
+    expect(r.top+r.height).toBeGreaterThan(520);
+    expect(r.left+r.width).toBeLessThan(800);
+  });
+  it('recovers a genuinely read level and description when both are missing',async()=>{
+    const worker={recognize:vi.fn().mockResolvedValue({data:{text:'8 吃 力'}})};
+    expect(await recoverMissingMetrics(worker,canvas,effortPage(),{})).toBe('运动强度 8 吃力');
+    expect(worker.recognize).toHaveBeenCalledOnce();
+    expect(worker.recognize.mock.calls[0][1].tessedit_char_whitelist).toContain('适中');
+  });
+  it('can complete either missing member while preserving an already known matching member',async()=>{
+    const worker={recognize:vi.fn().mockResolvedValue({data:{text:'8 吃力'}})};
+    expect(await recoverMissingMetrics(worker,canvas,effortPage(),{effortLevel:8})).toBe('运动强度 8 吃力');
+    expect(await recoverMissingMetrics(worker,canvas,effortPage(),{effortDescription:'吃力'})).toBe('运动强度 8 吃力');
+  });
+  it('does not run again when both effort fields were read',async()=>{
+    const worker={recognize:vi.fn()};
+    expect(await recoverMissingMetrics(worker,canvas,effortPage(),{effortLevel:8,effortDescription:'吃力'})).toBe('');
+    expect(worker.recognize).not.toHaveBeenCalled();
+  });
+  it.each(['8','适中','0 轻松','11 吃力','8未知','8适中 9吃力','8适中9吃力','-8轻松','18适中','6.5适中','6:5适中','+6适中','- 6适中','6 / 10适中','8非常吃力','8极限','8 very hard'])('does not derive an effort pair from missing or invalid image text: %s',async text=>{
+    const worker={recognize:vi.fn().mockResolvedValue({data:{text}})};
+    expect(await recoverMissingMetrics(worker,canvas,effortPage(),{})).toBe('');
+  });
+  it('leaves a contradictory pair empty instead of overriding the known field',async()=>{
+    const worker={recognize:vi.fn().mockResolvedValue({data:{text:'8 吃力'}})};
+    expect(await recoverMissingMetrics(worker,canvas,effortPage(),{effortLevel:6})).toBe('');
+    expect(await recoverMissingMetrics(worker,canvas,effortPage(),{effortDescription:'适中'})).toBe('');
   });
 });
 
